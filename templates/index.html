@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TheftGuardAI | V2.5 Command Center</title>
+    <style>
+        :root {
+            --bg: #0d0d12;
+            --panel: #16161e;
+            --lavender: #bb9af7;
+            --danger: #f7768e;
+            --safe: #9ece6a;
+            --text: #c0caf5;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Consolas', monospace;
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            transition: background 0.4s;
+        }
+
+        .vision-container {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            flex-grow: 1;
+            border: 2px solid var(--lavender);
+            border-radius: 12px;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(187, 154, 247, 0.1);
+            transition: border-color 0.4s, box-shadow 0.4s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-wrapper.danger-mode {
+            border-color: var(--danger);
+            box-shadow: 0 0 40px rgba(247, 118, 142, 0.35);
+        }
+
+        .video-wrapper.safe-mode {
+            border-color: var(--safe);
+            box-shadow: 0 0 30px rgba(158, 206, 106, 0.2);
+        }
+
+        /* Portrait & landscape both handled correctly:
+           height: 100% fills wrapper vertically, width: auto keeps aspect ratio,
+           margin: auto centers it so black bars are equal on both sides */
+        #video-stream {
+            display: block;
+            width: auto;
+            height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            margin: 0 auto;
+        }
+
+        /* FIX: Verdict banner now has SAFE/RISK pill indicator */
+        .live-verdict-banner {
+            background: rgba(187, 154, 247, 0.08);
+            border: 1px solid var(--lavender);
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-size: 1rem;
+            min-height: 54px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: border-color 0.4s, background 0.4s;
+        }
+
+        .live-verdict-banner.danger {
+            background: rgba(247, 118, 142, 0.1);
+            border-color: var(--danger);
+        }
+
+        .live-verdict-banner.safe-confirmed {
+            background: rgba(158, 206, 106, 0.08);
+            border-color: var(--safe);
+        }
+
+        .verdict-pill {
+            font-weight: bold;
+            font-size: 0.85rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+            letter-spacing: 2px;
+        }
+
+        .pill-risk {
+            background: var(--danger);
+            color: #0d0d12;
+        }
+
+        .pill-safe {
+            background: var(--safe);
+            color: #0d0d12;
+        }
+
+        .pill-scanning {
+            background: var(--lavender);
+            color: #0d0d12;
+        }
+
+        #current-intel {
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        /* Right sidebar */
+        .sidebar {
+            background: var(--panel);
+            border-left: 1px solid #24283b;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow: hidden;  /* prevent children from bleeding out */
+        }
+
+        .status-header {
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+            padding: 15px;
+            border: 1px solid var(--lavender);
+            color: var(--lavender);
+            border-radius: 6px;
+            transition: color 0.3s, border-color 0.3s, background 0.3s;
+            letter-spacing: 2px;
+        }
+
+        .status-header.danger {
+            color: var(--danger);
+            border-color: var(--danger);
+            background: rgba(247, 118, 142, 0.08);
+            animation: pulse 1s infinite alternate;
+        }
+
+        .status-header.safe-confirmed {
+            color: var(--safe);
+            border-color: var(--safe);
+            background: rgba(158, 206, 106, 0.05);
+        }
+
+        @keyframes pulse {
+            from { box-shadow: 0 0 0px rgba(247, 118, 142, 0.3); }
+            to   { box-shadow: 0 0 18px rgba(247, 118, 142, 0.6); }
+        }
+
+        .btn-upload {
+            background: var(--lavender);
+            color: var(--bg);
+            border: none;
+            padding: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: 'Consolas', monospace;
+            letter-spacing: 1px;
+            transition: opacity 0.2s;
+        }
+
+        .btn-upload:hover { opacity: 0.85; }
+
+        .log-label {
+            font-size: 0.7rem;
+            color: #565f89;
+            letter-spacing: 2px;
+        }
+
+        .intel-log {
+            flex: 1 1 0;      /* grow but never push past sidebar bounds */
+            min-height: 0;    /* critical — without this, flex-grow ignores overflow */
+            background: #000;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            border: 1px solid #1a1b26;
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1a1b26;
+            line-height: 1.5;
+        }
+
+        .log-entry .time { color: var(--lavender); margin-right: 6px; }
+
+        /* FIX: Color-coded log entries */
+        .log-entry.risk {
+            color: var(--danger);
+            border-left: 3px solid var(--danger);
+            padding-left: 8px;
+        }
+
+        .log-entry.safe-entry {
+            color: var(--safe);
+            border-left: 3px solid var(--safe);
+            padding-left: 8px;
+        }
+
+        /* Environment selector */
+        .env-label {
+            font-size: 0.7rem;
+            color: #565f89;
+            letter-spacing: 2px;
+            margin-bottom: -10px;
+        }
+
+        .env-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .env-btn {
+            background: #1e1e2a;
+            color: var(--text);
+            border: 1px solid #2a2a3a;
+            padding: 8px 4px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Consolas', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .env-btn:hover {
+            border-color: var(--lavender);
+            color: var(--lavender);
+        }
+
+        .env-btn.active {
+            background: rgba(187, 154, 247, 0.15);
+            border-color: var(--lavender);
+            color: var(--lavender);
+            font-weight: bold;
+        }
+
+        .env-indicator {
+            font-size: 0.72rem;
+            text-align: center;
+            color: #565f89;
+            letter-spacing: 1px;
+        }
+
+        .env-indicator span {
+            color: var(--lavender);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="vision-container">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="letter-spacing:5px; font-size:0.9rem;">THEFTGUARD_AI // LIVE_FEED</span>
+            <span id="clock" style="color:var(--lavender);">00:00:00</span>
+        </div>
+
+        <div class="video-wrapper" id="video-wrapper">
+            <img id="video-stream" src="{{ url_for('video_feed') }}">
+        </div>
+
+        <!-- FIX: Banner now has pill + reason separately -->
+        <div class="live-verdict-banner" id="live-banner">
+            <span class="verdict-pill pill-scanning" id="verdict-pill">SCANNING</span>
+            <span id="current-intel">Awaiting first scan...</span>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="status-header" id="main-status">SYSTEM_SECURE</div>
+
+        <!-- Environment Selector -->
+        <div class="env-label">SCAN_ENVIRONMENT</div>
+        <div class="env-grid">
+            <button class="env-btn active" id="env-retail"    onclick="setEnv('retail')">🛒 RETAIL</button>
+            <button class="env-btn"        id="env-office"    onclick="setEnv('office')">💼 OFFICE</button>
+            <button class="env-btn"        id="env-home"      onclick="setEnv('home')">🏠 HOME</button>
+            <button class="env-btn"        id="env-warehouse" onclick="setEnv('warehouse')">📦 WAREHOUSE</button>
+            <button class="env-btn"        id="env-parking"   onclick="setEnv('parking')" style="grid-column: span 2;">🚗 PARKING LOT</button>
+        </div>
+        <div class="env-indicator">ACTIVE MODE: <span id="env-display">RETAIL</span></div>
+
+        <button class="btn-upload" onclick="document.getElementById('file-in').click()">
+            ▶ LOAD FOOTAGE
+        </button>
+        <input type="file" id="file-in" hidden onchange="uploadFootage()" accept="video/*">
+
+        <button class="btn-upload" id="mute-btn" onclick="toggleMute()"
+            style="background:#1e1e2a; border:1px solid var(--lavender); color:var(--lavender);">
+            🔊 SOUND: ON
+        </button>
+
+        <div class="log-label">INTELLIGENCE_HISTORY_LOG</div>
+        <div class="intel-log" id="history-log"></div>
+    </div>
+
+    <script>
+        let lastMsg = "";
+        let isMuted = false;
+        const alertSound = new Audio('/static/alarm.mp3');
+        alertSound.volume = 1.0;
+
+        const ENV_LABELS = {
+            retail: "RETAIL", office: "OFFICE",
+            home: "HOME", warehouse: "WAREHOUSE", parking: "PARKING LOT"
+        };
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            alertSound.muted = isMuted;
+            const btn = document.getElementById('mute-btn');
+            btn.textContent = isMuted ? '🔇 SOUND: OFF' : '🔊 SOUND: ON';
+            btn.style.color = isMuted ? '#565f89' : 'var(--lavender)';
+            btn.style.borderColor = isMuted ? '#565f89' : 'var(--lavender)';
+        }
+
+        function setEnv(env) {
+            fetch('/set_env', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ environment: env })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
+                    document.getElementById('env-' + env).classList.add('active');
+                    document.getElementById('env-display').textContent = ENV_LABELS[env] || env.toUpperCase();
+                    document.getElementById('history-log').innerHTML = "";
+                    lastMsg = "";
+                }
+            });
+        }
+
+        function poll() {
+            fetch('/get_intel')
+                .then(r => r.json())
+                .then(data => {
+                    const intel    = data.intel || "";
+                    const isDanger = data.danger;
+
+                    const banner   = document.getElementById('live-banner');
+                    const pill     = document.getElementById('verdict-pill');
+                    const intelSpan = document.getElementById('current-intel');
+                    const status   = document.getElementById('main-status');
+                    const wrapper  = document.getElementById('video-wrapper');
+                    const log      = document.getElementById('history-log');
+
+                    let pillText   = "SCANNING";
+                    let reasonText = intel;
+
+                    if (intel.toUpperCase().startsWith("VERDICT:")) {
+                        const afterVerdict = intel.slice("VERDICT:".length).trim();
+                        const pipeIdx = afterVerdict.indexOf("|");
+                        if (pipeIdx !== -1) {
+                            pillText   = afterVerdict.slice(0, pipeIdx).trim().toUpperCase();
+                            reasonText = afterVerdict.slice(pipeIdx + 1).trim();
+                        } else {
+                            pillText   = afterVerdict.trim().toUpperCase();
+                            reasonText = "";
+                        }
+                    } else if (intel.startsWith("API Error") || intel.startsWith("Analysis error")) {
+                        pillText   = "ERROR";
+                        reasonText = intel;
+                    }
+
+                    intelSpan.textContent = reasonText || "Analyzing...";
+
+                    pill.className = "verdict-pill";
+                    if (pillText === "RISK") {
+                        pill.classList.add("pill-risk");
+                        pill.textContent = "!! RISK";
+                    } else if (pillText === "SAFE") {
+                        pill.classList.add("pill-safe");
+                        pill.textContent = "✓ SAFE";
+                    } else {
+                        pill.classList.add("pill-scanning");
+                        pill.textContent = pillText || "SCANNING";
+                    }
+
+                    banner.className = "live-verdict-banner";
+                    if (isDanger)                banner.classList.add("danger");
+                    else if (pillText === "SAFE") banner.classList.add("safe-confirmed");
+
+                    status.className = "status-header";
+                    if (isDanger) {
+                        status.textContent = "!! BREACH DETECTED !!";
+                        status.classList.add("danger");
+                        document.body.style.backgroundColor = "#140808";
+                        wrapper.className = "video-wrapper danger-mode";
+                    } else if (pillText === "SAFE") {
+                        status.textContent = "SYSTEM_SECURE";
+                        status.classList.add("safe-confirmed");
+                        document.body.style.backgroundColor = "var(--bg)";
+                        wrapper.className = "video-wrapper safe-mode";
+                    } else {
+                        status.textContent = "SYSTEM_SECURE";
+                        document.body.style.backgroundColor = "var(--bg)";
+                        wrapper.className = "video-wrapper";
+                    }
+
+                    if (intel !== lastMsg && !intel.startsWith("Monitoring") && pillText !== "SCANNING") {
+                        const entry = document.createElement('div');
+                        entry.className = isDanger ? 'log-entry risk' : 'log-entry safe-entry';
+                        entry.innerHTML = `<span class="time">[${new Date().toLocaleTimeString()}]</span>`
+                                        + `<strong>${pillText}</strong> — ${reasonText}`;
+                        log.prepend(entry);
+
+                        if (isDanger) {
+                            alertSound.currentTime = 0;
+                            alertSound.play().catch(() => {});
+                        }
+
+                        lastMsg = intel;
+                    }
+                })
+                .catch(() => {});
+        }
+
+        setInterval(poll, 1500);
+
+        function uploadFootage() {
+            const f = document.getElementById('file-in').files[0];
+            if (!f) return;
+            const fd = new FormData();
+            fd.append('file', f);
+            fetch('/upload', { method: 'POST', body: fd }).then(() => {
+                document.getElementById('video-stream').src = "/video_feed?t=" + Date.now();
+                document.getElementById('history-log').innerHTML = "";
+            });
+        }
+
+        setInterval(() => {
+            document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+        }, 1000);
+    </script>
+</body>
+</html>

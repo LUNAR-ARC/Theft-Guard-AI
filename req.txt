@@ -1,0 +1,17 @@
+matplotlib
+seaborn
+pandas
+scipy
+ultralytics
+torch
+torchvision
+opencv-python
+numpy
+deep-sort-realtime
+torchreid
+tqdm
+streamlit
+pyyaml
+playsound
+scikit-learn
+pillow

@@ -1,0 +1,131 @@
+:root {
+    --deep-bg: #0d0d12;
+    --surface: #16161e;
+    --lavender: #bb9af7;
+    --lavender-glow: rgba(187, 154, 247, 0.25);
+    --text-muted: #787c99;
+    --text-bright: #a9b1d6;
+    --danger: #f7768e;
+}
+
+body {
+    background-color: var(--deep-bg);
+    color: var(--text-bright);
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.main-layout {
+    display: grid;
+    grid-template-columns: 1fr 400px; /* Sir, wide area for video, fixed sidebar */
+    height: 100vh;
+}
+
+/* Centralized Vision Section */
+.vision-hub {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, #1a1b26 0%, #0d0d12 100%);
+    padding: 40px;
+}
+
+.video-container {
+    width: 100%;
+    max-width: 950px;
+    border-radius: 28px;
+    border: 1px solid rgba(187, 154, 247, 0.2);
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 30px var(--lavender-glow);
+    position: relative;
+}
+
+#stream-view { width: 100%; display: block; }
+
+.system-tag {
+    position: absolute;
+    bottom: 25px;
+    right: 25px;
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--lavender);
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px var(--lavender);
+}
+
+/* Unified Action Center */
+.sidebar {
+    background: var(--surface);
+    border-left: 1px solid #24283b;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.control-pod {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 24px;
+    border-radius: 24px; /* Sir, the circular edges you requested */
+    border: 1px solid #24283b;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 15px; /* Slight downward offset for a minimal look */
+}
+
+.btn {
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px solid var(--lavender);
+    background: transparent;
+    color: var(--lavender);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.main-btn:hover {
+    background: var(--lavender);
+    color: var(--deep-bg);
+    box-shadow: 0 0 25px var(--lavender);
+    transform: translateY(-2px);
+}
+
+.intel-center h3 {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+.log-viewport {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.entry {
+    font-size: 12px;
+    padding: 12px;
+    background: rgba(255,255,255,0.02);
+    margin-bottom: 8px;
+    border-radius: 10px;
+    border-left: 3px solid #24283b;
+    color: var(--text-muted);
+}
+
+.entry.alert {
+    border-left-color: var(--danger);
+    background: rgba(247, 118, 142, 0.1);
+    color: var(--danger);
+}
